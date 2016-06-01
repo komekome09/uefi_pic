@@ -53,3 +53,7 @@ tags
 *.dSYM/
 *.su
 
+# efi
+OVMF/
+image/
+*.efi

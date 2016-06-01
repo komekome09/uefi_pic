@@ -5,9 +5,9 @@ HDDRROOT 	= $(EFIROOT)/include/efi
 INCLUDES 	= -I. -I$(HDDRROOT) -I$(HDDRROOT)/$(ARCH) -I$(HDDRROOT)/protocol
 
 CRTOBJS 	= $(EFILIB)/crt0-efi-$(ARCH).o
-CFLAGS 		= -g -O0 -fpic -Wall -fshort-wchar -fno-strict-aliasing -fno-merge-constants -mno-red-zone -e efi_main
+CFLAGS 		= -O2 -fpic -Wall -fshort-wchar -fno-strict-aliasing -fno-merge-constants -mno-red-zone -ffreestanding
 ifeq ($(ARCH),x86_64)
-	CFLAGS += -DEFI_FUNCTION_WRAPPER
+	CFLAGS += -m64 -DEFI_FUNCTION_WRAPPER
 endif
 
 CPPFLAGS 	= -DCONFIG_$(ARCH)
@@ -18,7 +18,7 @@ LDSCRIPTS 	= -T $(EFILIB)/elf_$(ARCH)_efi.lds
 LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS) 
 LOADLIBS 	= -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name)
 
-prefix 		= $(ARCH)-w64-mingw32-
+prefix 		= #$(ARCH)-w64-mingw32-
 CC 			= $(prefix)gcc
 AS 			= $(prefix)as
 LD 			= $(prefix)ld
@@ -34,16 +34,16 @@ OBJCOPY 	= $(prefix)objcopy
 	$(LD) -t $(LDFLAGS) $^ -o $@ $(LOADLIBS)
 
 %.o: %.c
-	$(CC) $(INCLUDES) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+	$(CC) -v $(INCLUDES) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 TARGETS = main.efi
 
 all: qemu 
 
-qemu: $(TARGETS) OVMF/OVMF.fd BOOT.EFI
+qemu: $(TARGETS) OVMF/OVMF.fd image/EFI/BOOT/BOOTX64.EFI
 	qemu-system-x86_64 -nographic -L OVMF/ -bios OVMF/OVMF.fd -hda fat:image
 
-BOOT.EFI:
+image/EFI/BOOT/BOOTX64.EFI:
 	mkdir -p image/EFI/BOOT
 	ln -sf ../../../main.efi image/EFI/BOOT/BOOTX64.EFI
 
@@ -51,6 +51,7 @@ OVMF/OVMF.fd:
 	mkdir OVMF
 	wget -nc http://downloads.sourceforge.net/project/edk2/OVMF/OVMF-X64-r15214.zip
 	unzip OVMF-X64-r15214.zip OVMF.fd -d OVMF
+	rm OVMF-X64-r15214.zip
 
 clean:
 	rm -f main.efi
