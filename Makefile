@@ -31,10 +31,10 @@ OBJCOPY 	= $(prefix)objcopy
 				   -j .rela -j .reloc --target=$(FORMAT) $*.so $@
 
 %.so: %.o
-	$(LD) -t $(LDFLAGS) $^ -o $@ $(LOADLIBS)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LOADLIBS)
 
-%.o: %.c
-	$(CC) -v $(INCLUDES) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+%.o: %.c %.h
+	$(CC) $(INCLUDES) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 TARGETS = main.efi
 
