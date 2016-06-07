@@ -19,6 +19,7 @@ typedef struct {
 	UINT32	Height;
 	UINT16	Planes;
 	UINT16	BitCount;
+	UINT32	Compression;
 } BITMAP_FILE_HEADER;
 #pragma pack()
 
@@ -41,32 +42,31 @@ LoadBitmapFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **BmpBuffer, OUT 
 
 	Status = uefi_call_wrapper(BS->LocateProtocol, 3, &SimpleFileSystemProtocolGuid, NULL, &SimpleFile);
 	if(EFI_ERROR(Status)){
-		Print(L"Locate protocol error.\n");
+		Print(L"LocateProtocol: %r\n", Status);
 		return Status;
 	}
 
-	Print(L"hoge\n");
 	Status = uefi_call_wrapper(SimpleFile->OpenVolume, 2, SimpleFile, &Root);
 	if(EFI_ERROR(Status)){
-		Print(L"Volume open error\n");
+		Print(L"VolumrOpen: %r\n", Status);
 		return Status;
 	}
 
-	Print(L"hoge\n");
 	Status = uefi_call_wrapper(Root->Open, 5, Root, &File, Path, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
 	if(EFI_ERROR(Status)){
-		Print(L"File open error\n");
+		Print(L"FileOpen: %r\n", Status);
 		return Status;
 	}
 
 	BufferSize = MAX_BUFFER_SIZE;
 	Buffer = AllocatePool(BufferSize);
 	if(Buffer == NULL){
+		Print(L"Buffer: %r\n", EFI_OUT_OF_RESOURCES);
 		return EFI_OUT_OF_RESOURCES;
 	}
 	Status = uefi_call_wrapper(File->Read, 3, File, &BufferSize, Buffer);
 	if(BufferSize == MAX_BUFFER_SIZE){
-		Print(L"Buffer is too small.\n");
+		Print(L"BufferSize: %r\n", EFI_OUT_OF_RESOURCES);
 		if(Buffer != NULL){
 			FreePool(Buffer);
 		}
@@ -86,47 +86,68 @@ EFI_STATUS
 DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN UINTN BmpSize){
 	EFI_STATUS						Status = EFI_SUCCESS;
 	BITMAP_FILE_HEADER				*BitmapHeader;
-	UINT8							*BitmapData;
+	UINT8							*BitmapIndex;
+	UINT8							*BitmapHead;
 	UINT32							*Palette;
 	UINTN							Pixels;
 	UINTN							XIndex;
 	UINTN							YIndex;
-	UINTN							Pos;
 	UINTN							BltPos;
 	EFI_GRAPHICS_OUTPUT_BLT_PIXEL	*BltBuffer;
 
 	BitmapHeader = (BITMAP_FILE_HEADER*)BmpBuffer;
-	Print(L"%d x %d\n", BitmapHeader->Width, BitmapHeader->Height);
+	Print(L"Bitmap: %d x %d\n", BitmapHeader->Width, BitmapHeader->Height);
 
 	if(BitmapHeader->CoreHeaderSize != 40){
+		Print(L"CoreHeaderSize: %r\n", EFI_UNSUPPORTED);
 		return EFI_UNSUPPORTED;
 	}
-	if(BitmapHeader->BitCount != 8){
+	if(BitmapHeader->Compression != 0){
+		Print(L"Compression: %r\n", EFI_UNSUPPORTED);
+		return EFI_UNSUPPORTED;
+	}
+	if(BitmapHeader->BitCount != 8 && BitmapHeader->BitCount != 24){
+		Print(L"BitCount: %r\n", EFI_UNSUPPORTED);
 		return EFI_UNSUPPORTED;
 	}
 
-	BitmapData 	= (UINT8*)BmpBuffer + BitmapHeader->Offset;
+	BitmapHead	= (UINT8*)BmpBuffer + BitmapHeader->Offset;
+	BitmapIndex = BitmapHead;
 	Palette		= (UINT32*)((UINT8*)BmpBuffer + 0x36); // 決め打ち
 	Pixels		= BitmapHeader->Width * BitmapHeader->Height;
 	BltBuffer	= AllocateZeroPool(sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL) * Pixels);
 	if(BltBuffer == NULL){
+		Print(L"BltBuffer: %r\n", EFI_OUT_OF_RESOURCES);
 		return EFI_OUT_OF_RESOURCES;
 	}
 
-	for(YIndex = BitmapHeader->Height; YIndex > 0; YIndex--){
-		for(XIndex = 0; XIndex < BitmapHeader->Width; XIndex++){
-			Pos		= (YIndex - 1) * ((BitmapHeader->Width + 3) / 4) * 4 + XIndex;
+	for(YIndex = 0; YIndex < BitmapHeader->Height; YIndex++){
+		for(XIndex = 0; XIndex < BitmapHeader->Width; XIndex++, BitmapIndex++){
 			BltPos	= (BitmapHeader->Height - YIndex) * BitmapHeader->Width + XIndex;
-			BltBuffer[BltPos].Blue		= (UINT8) BitFieldRead32 (Palette[BitmapData[Pos]], 0 , 7 );
-			BltBuffer[BltPos].Green    = (UINT8) BitFieldRead32 (Palette[BitmapData[Pos]], 8 , 15);
-			BltBuffer[BltPos].Red      = (UINT8) BitFieldRead32 (Palette[BitmapData[Pos]], 16, 23);
-			BltBuffer[BltPos].Reserved = (UINT8) BitFieldRead32 (Palette[BitmapData[Pos]], 24, 31);
+			switch(BitmapHeader->BitCount){
+				case 8:
+					BltBuffer[BltPos].Blue		= (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 0 , 7 );
+					BltBuffer[BltPos].Green    = (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 8 , 15);
+					BltBuffer[BltPos].Red      = (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 16, 23);
+					break;
+				case 24:
+					BltBuffer[BltPos].Blue		= *BitmapIndex++;
+					BltBuffer[BltPos].Green    = *BitmapIndex++;
+					BltBuffer[BltPos].Red      = *BitmapIndex;
+					break;
+				default:
+					Print(L"BitCount:: %r\n", EFI_UNSUPPORTED);
+					return EFI_UNSUPPORTED;
+			}
+		}
+		if((BitmapIndex - BitmapHead) % 4 != 0){
+			BitmapIndex = BitmapIndex + (4 - ((BitmapIndex - BitmapHead) % 4));
 		}
 	}
 
 	Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 200, 200, BitmapHeader->Width, BitmapHeader->Height, 0);
 	if(EFI_ERROR(Status)){
-		Print(L"Can not draw picture.\n");
+		Print(L"Blt: %r\n", Status);
 		return Status;
 	}
 	FreePool(BltBuffer);

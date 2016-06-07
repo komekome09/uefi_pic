@@ -8,12 +8,13 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	VOID							*BmpBuffer = NULL;
 	UINTN							BmpSize;
 	EFI_INPUT_KEY					Key;
+	CHAR16							FileName[] = L"ruru.bmp";
 
 	InitializeLib(ImageHandle, SystemTable);
 
 	LibLocateProtocol(&EfiGraphicsOutputProtocolGuid, (void **)&GraphicsOutput);
 	
-	Status = LoadBitmapFile(ImageHandle,  L"Logo.bmp", &BmpBuffer, &BmpSize);
+	Status = LoadBitmapFile(ImageHandle,  FileName, &BmpBuffer, &BmpSize);
 	if(EFI_ERROR(Status)){
 		if(BmpBuffer != NULL){
 			FreePool(BmpBuffer);
@@ -21,6 +22,15 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 		Print(L"Load bitmap failed.\n");
 		return Status;
 	}
+
+	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION	*GraphicsInfo;
+	UINTN									Size;
+	Status = uefi_call_wrapper(GraphicsOutput->QueryMode, 4, GraphicsOutput, 0, &Size, &GraphicsInfo);
+	if(EFI_ERROR(Status)){
+		Print(L"QueryMode: %r\n", Status);
+		return Status;
+	}
+	Print(L"Display: %d x %d\n", GraphicsInfo->HorizontalResolution, GraphicsInfo->VerticalResolution);
 
 	Status = DrawBmp(GraphicsOutput, BmpBuffer, BmpSize);
 	if(EFI_ERROR(Status)){
