@@ -5,7 +5,7 @@ HDDRROOT 	= $(EFIROOT)/include/efi
 INCLUDES 	= -I. -I$(HDDRROOT) -I$(HDDRROOT)/$(ARCH) -I$(HDDRROOT)/protocol
 
 CRTOBJS 	= $(EFILIB)/crt0-efi-$(ARCH).o
-CFLAGS 		= -O2 -fpic -Wall -fshort-wchar -fno-strict-aliasing -fno-merge-constants -mno-red-zone -ffreestanding
+CFLAGS 		= -O2 -std=gnu11 -fpic -Wall -fshort-wchar -fno-strict-aliasing -fno-merge-constants -mno-red-zone -ffreestanding
 ifeq ($(ARCH),x86_64)
 	CFLAGS += -m64 -DEFI_FUNCTION_WRAPPER
 endif

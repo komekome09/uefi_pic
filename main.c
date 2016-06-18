@@ -25,12 +25,15 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 
 	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION	*GraphicsInfo;
 	UINTN									Size;
-	Status = uefi_call_wrapper(GraphicsOutput->QueryMode, 4, GraphicsOutput, 0, &Size, &GraphicsInfo);
-	if(EFI_ERROR(Status)){
-		Print(L"QueryMode: %r\n", Status);
-		return Status;
+	Print(L"Current Mode: %d\n", GraphicsOutput->Mode->Mode);
+	for(int ModeNumber = 0; ModeNumber < GraphicsOutput->Mode->MaxMode; ModeNumber++){
+		Status = uefi_call_wrapper(GraphicsOutput->QueryMode, 4, GraphicsOutput, 0, &Size, &GraphicsInfo);
+		if(EFI_ERROR(Status)){
+			Print(L"QueryMode: %r\n", Status);
+			return Status;
+		}
+		Print(L"Mode %d - Display: %d x %d\n", ModeNumber, GraphicsInfo->HorizontalResolution, GraphicsInfo->VerticalResolution);
 	}
-	Print(L"Display: %d x %d\n", GraphicsInfo->HorizontalResolution, GraphicsInfo->VerticalResolution);
 
 	Status = DrawBmp(GraphicsOutput, BmpBuffer, BmpSize);
 	if(EFI_ERROR(Status)){
