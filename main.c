@@ -8,7 +8,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	VOID							*BmpBuffer = NULL;
 	UINTN							BmpSize;
 	EFI_INPUT_KEY					Key;
-	CHAR16							FileName[] = L"Osaka.bmp";
+	CHAR16							FileName[] = L"nanagi.bmp";
 
 	InitializeLib(ImageHandle, SystemTable);
 

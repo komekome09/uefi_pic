@@ -15,7 +15,7 @@ FORMAT		= efi-app-$(ARCH)
 INSTALL		= install
 LDFLAGS		= -nostdlib
 LDSCRIPTS 	= -T $(EFILIB)/elf_$(ARCH)_efi.lds
-LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS) 
+LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS)
 LOADLIBS 	= -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name)
 
 prefix 		= #$(ARCH)-w64-mingw32-

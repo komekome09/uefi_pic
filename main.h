@@ -100,9 +100,9 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 
 	BitmapHeader = (BITMAP_FILE_HEADER*)BmpBuffer;
 	BitmapWidth  = BitmapHeader->Width;
-	BitmapWidth	 = ((INT32)BitmapWidth < 0) ? -(BitmapWidth) : BitmapWidth;
+	BitmapWidth	 = ((INT32)BitmapWidth < 0) ? -(INT32)(BitmapWidth) : BitmapWidth;
 	BitmapHeight = BitmapHeader->Height;
-	BitmapHeight = ((INT32)BitmapHeight < 0) ? -(BitmapHeight) : BitmapHeight;
+	BitmapHeight = ((INT32)BitmapHeight < 0) ? -(INT32)(BitmapHeight) : BitmapHeight;
 
 	Print(L"Bitmap: %d x %d\n", BitmapHeader->Width, BitmapHeader->Height);
 	Print(L"Bitmap: %d x %d\n", BitmapWidth, BitmapHeight);
@@ -177,7 +177,7 @@ ShowQueryMode(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput){
 		Status = uefi_call_wrapper(GraphicsOutput->QueryMode, 4, GraphicsOutput, 0, &Size, &GraphicsInfo);
 		if(EFI_ERROR(Status)){
 			Print(L"QueryMode: %r\n", Status);
-			return Status;
+			return;
 		}
 		Print(L"Mode %d - Display: %d x %d\n", ModeNumber, GraphicsInfo->HorizontalResolution, GraphicsInfo->VerticalResolution);
 	}
