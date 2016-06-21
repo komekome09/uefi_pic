@@ -56,4 +56,5 @@ tags
 # efi
 OVMF/
 image/
+bmp/
 *.efi

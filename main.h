@@ -154,3 +154,20 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 
 	return Status;
 }
+
+VOID
+ShowQueryMode(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput){
+	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION	*GraphicsInfo;
+	UINTN									Size;
+	EFI_STATUS								Status;
+
+	Print(L"Current Mode: %d\n", GraphicsOutput->Mode->Mode);
+	for(int ModeNumber = 0; ModeNumber < GraphicsOutput->Mode->MaxMode; ModeNumber++){
+		Status = uefi_call_wrapper(GraphicsOutput->QueryMode, 4, GraphicsOutput, 0, &Size, &GraphicsInfo);
+		if(EFI_ERROR(Status)){
+			Print(L"QueryMode: %r\n", Status);
+			return Status;
+		}
+		Print(L"Mode %d - Display: %d x %d\n", ModeNumber, GraphicsInfo->HorizontalResolution, GraphicsInfo->VerticalResolution);
+	}
+}
