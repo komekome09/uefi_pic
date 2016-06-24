@@ -1,0 +1,4 @@
+- [ ] muslのコンパイル
+	- [ ] x86_64環境に移すべき
+- [ ] libpngとzlibのコンパイル
+	- [ ] muslのstatic libraryを使うようにする(これで動くのでは)
