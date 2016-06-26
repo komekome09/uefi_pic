@@ -2,7 +2,7 @@ ARCH 		= x86_64
 EFIROOT 	= /usr
 EFILIB		= $(EFIROOT)/lib64
 HDDRROOT 	= $(EFIROOT)/include/efi
-INCLUDES 	= -I. -I$(HDDRROOT) -I$(HDDRROOT)/$(ARCH) -I$(HDDRROOT)/protocol
+INCLUDES 	= -I. -I$(HDDRROOT) -I$(HDDRROOT)/$(ARCH) -I$(HDDRROOT)/protocol -I$(HOME)/opt/include
 
 CRTOBJS 	= $(EFILIB)/crt0-efi-$(ARCH).o
 CFLAGS 		= -O2 -std=gnu11 -fpic -Wall -fshort-wchar -fno-strict-aliasing -fno-merge-constants -mno-red-zone -ffreestanding
@@ -15,7 +15,7 @@ FORMAT		= efi-app-$(ARCH)
 INSTALL		= install
 LDFLAGS		= -nostdlib
 LDSCRIPTS 	= -T $(EFILIB)/elf_$(ARCH)_efi.lds
-LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS)
+LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS) -L$(HOME)/opt/lib
 LOADLIBS 	= -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name)
 
 prefix 		= #$(ARCH)-w64-mingw32-
@@ -41,7 +41,7 @@ TARGETS = main.efi
 all: qemu 
 
 qemu: $(TARGETS) OVMF/OVMF.fd image/EFI/BOOT/BOOTX64.EFI
-	qemu-system-x86_64 -L OVMF/ -bios OVMF/OVMF.fd -hda fat:image
+	qemu-system-x86_64 -L OVMF/ -bios OVMF/OVMF.fd -hda fat:image -vnc 192.168.1.9:3
 
 image/EFI/BOOT/BOOTX64.EFI:
 	mkdir -p image/EFI/BOOT
