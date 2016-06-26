@@ -4,7 +4,7 @@
 #include <efibind.h>
 #include <efilib.h>
 #include <efiprot.h>
-#include <png.h>
+#include "png.h"
 
 #define SIZE_1MB 0x00100000
 #define MAX_BUFFER_SIZE SIZE_1MB
