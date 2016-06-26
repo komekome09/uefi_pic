@@ -4,6 +4,7 @@
 #include <efibind.h>
 #include <efilib.h>
 #include <efiprot.h>
+#include <png.h>
 
 #define SIZE_1MB 0x00100000
 #define MAX_BUFFER_SIZE SIZE_1MB
@@ -23,16 +24,13 @@ typedef struct {
 } BITMAP_FILE_HEADER;
 #pragma pack()
 
-UINT32
-BitFieldRead32(IN UINT32 Operand, IN UINTN StartBit, IN UINTN EndBit){
+UINT32 BitFieldRead32(IN UINT32 Operand, IN UINTN StartBit, IN UINTN EndBit){
 	ASSERT(EndBit < sizeof(Operand) * 8);
 	ASSERT(StartBit <= EndBit);
 	return (Operand & ~((unsigned int)-2 << EndBit)) >> StartBit;
 }
 
-STATIC
-EFI_STATUS
-LoadBitmapFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **BmpBuffer, OUT UINTN *BmpSize){
+STATIC EFI_STATUS LoadPicFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **PicBuffer, OUT UINTN *PicSize){
 	EFI_STATUS					Status = EFI_SUCCESS;
 	EFI_FILE_IO_INTERFACE		*SimpleFile;
 	EFI_GUID					SimpleFileSystemProtocolGuid = SIMPLE_FILE_SYSTEM_PROTOCOL;
@@ -75,15 +73,13 @@ LoadBitmapFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **BmpBuffer, OUT 
 	
 	Buffer = ReallocatePool(Buffer, MAX_BUFFER_SIZE, BufferSize);
 
-	*BmpBuffer = Buffer;
-	*BmpSize   = BufferSize;
+	*PicBuffer = Buffer;
+	*PicSize   = BufferSize;
 
 	return Status;
 }
 
-STATIC
-EFI_STATUS
-DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN UINTN BmpSize){
+STATIC EFI_STATUS DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN UINTN BmpSize){
 	EFI_STATUS						Status = EFI_SUCCESS;
 	BITMAP_FILE_HEADER				*BitmapHeader;
 	UINT8							*BitmapIndex;
@@ -181,4 +177,18 @@ ShowQueryMode(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput){
 		}
 		Print(L"Mode %d - Display: %d x %d\n", ModeNumber, GraphicsInfo->HorizontalResolution, GraphicsInfo->VerticalResolution);
 	}
+}
+
+STATIC EFI_STATUS DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN VOID *PngBuffer, IN UINTN PngSize){
+    EFI_STATUS          Status = EFI_SUCCESS;
+
+    png_struct *png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if(!png_ptr){
+        Print(L"Create png struct failed.\n");
+        return EFI_OUT_OF_RESOURCES;
+    }
+
+    Print(L"hoge");
+
+    return Status;
 }

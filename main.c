@@ -5,19 +5,19 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	EFI_GUID						EfiGraphicsOutputProtocolGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 	EFI_STATUS 						Status = EFI_SUCCESS;
 	EFI_GRAPHICS_OUTPUT_PROTOCOL	*GraphicsOutput;
-	VOID							*BmpBuffer = NULL;
-	UINTN							BmpSize;
+	VOID							*PicBuffer = NULL;
+	UINTN							PicSize;
 	EFI_INPUT_KEY					Key;
-	CHAR16							FileName[] = L"nanagi.bmp";
+	CHAR16							FileName[] = L"nanagi.png";
 
 	InitializeLib(ImageHandle, SystemTable);
 
 	LibLocateProtocol(&EfiGraphicsOutputProtocolGuid, (void **)&GraphicsOutput);
 	
-	Status = LoadBitmapFile(ImageHandle,  FileName, &BmpBuffer, &BmpSize);
+	Status = LoadPicFile(ImageHandle,  FileName, &PicBuffer, &PicSize);
 	if(EFI_ERROR(Status)){
-		if(BmpBuffer != NULL){
-			FreePool(BmpBuffer);
+		if(PicBuffer != NULL){
+			FreePool(PicBuffer);
 		}
 		Print(L"Load bitmap failed.\n");
 		return Status;
@@ -25,14 +25,15 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 
 	ShowQueryMode(GraphicsOutput);
 
-	Status = DrawBmp(GraphicsOutput, BmpBuffer, BmpSize);
+	Status = DrawPng(GraphicsOutput, PicBuffer, PicSize);
+	//Status = DrawBmp(GraphicsOutput, PicBuffer, PicSize);
 	if(EFI_ERROR(Status)){
-		Print(L"Draw bmp failed.\n");
+		Print(L"Draw picture failed.\n");
 		return Status;
 	}
 
-	if(BmpBuffer != NULL){
-		FreePool(BmpBuffer);
+	if(PicBuffer != NULL){
+		FreePool(PicBuffer);
 	}
 
 	while ((Status = ST->ConIn->ReadKeyStroke(ST->ConIn, &Key)) == EFI_NOT_READY) ;

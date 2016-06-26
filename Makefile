@@ -13,10 +13,10 @@ endif
 CPPFLAGS 	= -DCONFIG_$(ARCH)
 FORMAT		= efi-app-$(ARCH)
 INSTALL		= install
-LDFLAGS		= -nostdlib
+LDFLAGS		= -nostdlib -nostdinc
 LDSCRIPTS 	= -T $(EFILIB)/elf_$(ARCH)_efi.lds
 LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS) -L$(HOME)/opt/lib
-LOADLIBS 	= -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name)
+LOADLIBS 	= -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name) -lpng
 
 prefix 		= #$(ARCH)-w64-mingw32-
 CC 			= $(prefix)gcc
