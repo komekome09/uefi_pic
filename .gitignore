@@ -57,3 +57,4 @@ tags
 OVMF/
 image/
 *.efi
+*.log
