@@ -2,10 +2,10 @@ ARCH 		= x86_64
 EFIROOT 	= /usr
 EFILIB		= $(EFIROOT)/lib64
 HDDRROOT 	= $(EFIROOT)/include/efi
-INCLUDES 	= -I. -I$(HDDRROOT) -I$(HDDRROOT)/$(ARCH) -I$(HDDRROOT)/protocol -I$(HOME)/opt/include
+INCLUDES 	= -I. -I$(HDDRROOT) -I$(HDDRROOT)/$(ARCH) -I$(HDDRROOT)/protocol -I./opt/include
 
 CRTOBJS 	= $(EFILIB)/crt0-efi-$(ARCH).o
-CFLAGS 		= -O2 -std=gnu11 -fpic -Wall -fshort-wchar -fno-strict-aliasing -fno-merge-constants -mno-red-zone -ffreestanding
+CFLAGS 		= -O2 -std=gnu11 -fPIC -Wall -fshort-wchar -fno-strict-aliasing -fno-merge-constants -mno-red-zone -ffreestanding
 ifeq ($(ARCH),x86_64)
 	CFLAGS += -m64 -DEFI_FUNCTION_WRAPPER
 endif
@@ -13,10 +13,10 @@ endif
 CPPFLAGS 	= -DCONFIG_$(ARCH)
 FORMAT		= efi-app-$(ARCH)
 INSTALL		= install
-LDFLAGS		= -nostdlib -nostdinc
+LDFLAGS		= -nostdlib
 LDSCRIPTS 	= -T $(EFILIB)/elf_$(ARCH)_efi.lds
-LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS) -L$(HOME)/opt/lib
-LOADLIBS 	= -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name) -lpng
+LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS) -L./opt/lib
+LOADLIBS 	= -lefi -lgnuefi -lpng $(shell $(CC) -print-libgcc-file-name)
 
 prefix 		= #$(ARCH)-w64-mingw32-
 CC 			= $(prefix)gcc
