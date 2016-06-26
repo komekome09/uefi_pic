@@ -19,7 +19,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 		if(PicBuffer != NULL){
 			FreePool(PicBuffer);
 		}
-		Print(L"Load bitmap failed.\n");
+		Print(L"Load bitmap failed.(%x)\n", Status);
 		return Status;
 	}
 
@@ -28,7 +28,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	Status = DrawPng(GraphicsOutput, PicBuffer, PicSize);
 	//Status = DrawBmp(GraphicsOutput, PicBuffer, PicSize);
 	if(EFI_ERROR(Status)){
-		Print(L"Draw picture failed.\n");
+		Print(L"Draw picture failed.(%x)\n", Status);
 		return Status;
 	}
 

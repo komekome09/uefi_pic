@@ -40,31 +40,31 @@ STATIC EFI_STATUS LoadPicFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **
 
 	Status = uefi_call_wrapper(BS->LocateProtocol, 3, &SimpleFileSystemProtocolGuid, NULL, &SimpleFile);
 	if(EFI_ERROR(Status)){
-		Print(L"LocateProtocol: %r\n", Status);
+		Print(L"LocateProtocol: %x\n", Status);
 		return Status;
 	}
 
 	Status = uefi_call_wrapper(SimpleFile->OpenVolume, 2, SimpleFile, &Root);
 	if(EFI_ERROR(Status)){
-		Print(L"VolumrOpen: %r\n", Status);
+		Print(L"VolumrOpen: %x\n", Status);
 		return Status;
 	}
 
 	Status = uefi_call_wrapper(Root->Open, 5, Root, &File, Path, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
 	if(EFI_ERROR(Status)){
-		Print(L"FileOpen: %r\n", Status);
+		Print(L"FileOpen: %x\n", Status);
 		return Status;
 	}
 
 	BufferSize = MAX_BUFFER_SIZE;
 	Buffer = AllocatePool(BufferSize);
 	if(Buffer == NULL){
-		Print(L"Buffer: %r\n", EFI_OUT_OF_RESOURCES);
+		Print(L"Buffer: %x\n", EFI_OUT_OF_RESOURCES);
 		return EFI_OUT_OF_RESOURCES;
 	}
 	Status = uefi_call_wrapper(File->Read, 3, File, &BufferSize, Buffer);
 	if(BufferSize == MAX_BUFFER_SIZE){
-		Print(L"BufferSize: %r\n", EFI_OUT_OF_RESOURCES);
+		Print(L"BufferSize: %x\n", EFI_OUT_OF_RESOURCES);
 		if(Buffer != NULL){
 			FreePool(Buffer);
 		}
@@ -104,15 +104,15 @@ STATIC EFI_STATUS DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN vo
 	Print(L"Bitmap: %d x %d\n", BitmapWidth, BitmapHeight);
 
 	if(BitmapHeader->CoreHeaderSize != 40){
-		Print(L"CoreHeaderSize: %r\n", EFI_UNSUPPORTED);
+		Print(L"CoreHeaderSize: %x\n", EFI_UNSUPPORTED);
 		return EFI_UNSUPPORTED;
 	}
 	if(BitmapHeader->Compression != 0){
-		Print(L"Compression: %r\n", EFI_UNSUPPORTED);
+		Print(L"Compression: %x\n", EFI_UNSUPPORTED);
 		return EFI_UNSUPPORTED;
 	}
 	if(BitmapHeader->BitCount != 8 && BitmapHeader->BitCount != 24){
-		Print(L"BitCount: %r\n", EFI_UNSUPPORTED);
+		Print(L"BitCount: %x\n", EFI_UNSUPPORTED);
 		return EFI_UNSUPPORTED;
 	}
 
@@ -124,7 +124,7 @@ STATIC EFI_STATUS DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN vo
 
 	BltBuffer	 = AllocateZeroPool(Size);
 	if(BltBuffer == NULL){
-		Print(L"BltBuffer: %r\nSize = %d\n", EFI_OUT_OF_RESOURCES, Size);
+		Print(L"BltBuffer: %x\nSize = %d\n", EFI_OUT_OF_RESOURCES, Size);
 		return EFI_OUT_OF_RESOURCES;
 	}
 
@@ -143,7 +143,7 @@ STATIC EFI_STATUS DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN vo
 					BltBuffer[BltPos].Red      = *BitmapIndex;
 					break;
 				default:
-					Print(L"BitCount:: %r\n", EFI_UNSUPPORTED);
+					Print(L"BitCount:: %x\n", EFI_UNSUPPORTED);
 					return EFI_UNSUPPORTED;
 			}
 		}
@@ -154,7 +154,7 @@ STATIC EFI_STATUS DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN vo
 
 	Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 200, 200, BitmapWidth, BitmapHeight, 0);
 	if(EFI_ERROR(Status)){
-		Print(L"Blt: %r\n", Status);
+		Print(L"Blt: %x\n", Status);
 		return Status;
 	}
 	FreePool(BltBuffer);
@@ -172,7 +172,7 @@ ShowQueryMode(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput){
 	for(int ModeNumber = 0; ModeNumber < GraphicsOutput->Mode->MaxMode; ModeNumber++){
 		Status = uefi_call_wrapper(GraphicsOutput->QueryMode, 4, GraphicsOutput, 0, &Size, &GraphicsInfo);
 		if(EFI_ERROR(Status)){
-			Print(L"QueryMode: %r\n", Status);
+			Print(L"QueryMode: %x\n", Status);
 			return;
 		}
 		Print(L"Mode %d - Display: %d x %d\n", ModeNumber, GraphicsInfo->HorizontalResolution, GraphicsInfo->VerticalResolution);
