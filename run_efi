@@ -1,0 +1,1 @@
+qemu-system-x86_64 -L OVMF/ -bios OVMF/OVMF.fd -hda fat:image
