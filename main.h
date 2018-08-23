@@ -32,6 +32,17 @@ BitFieldRead32(IN UINT32 Operand, IN UINTN StartBit, IN UINTN EndBit){
 
 STATIC
 EFI_STATUS
+LoadPngFile(IN EFI_HANDLE Handle, IN CHAR16 *Path, OUT void **PngBuffer, OUT UINTN *BmpSize){
+    EFI_STATUS                  Status = EFI_SUCCESS;
+    EFI_FILE_IO_INTERFACE       *SimpleFile;
+    EFI_GUID                    SimpleFileSystemProtocolGuid = SIMPLE_FILE_SYSTEM_PROTOCOL;
+    EFI_FILE                    *Root, *File;
+    UINTN                       BufferSize;
+    void                        *Buffer = NULL;
+}
+
+STATIC
+EFI_STATUS
 LoadBitmapFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **BmpBuffer, OUT UINTN *BmpSize){
 	EFI_STATUS					Status = EFI_SUCCESS;
 	EFI_FILE_IO_INTERFACE		*SimpleFile;
