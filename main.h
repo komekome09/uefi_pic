@@ -101,13 +101,22 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 	UINT8							*BitmapHead;
 	UINT32							*Palette;
 	UINTN							Pixels;
+	UINTN							Size;
 	UINTN							XIndex;
 	UINTN							YIndex;
 	UINTN							BltPos;
+	UINTN							BitmapWidth;
+	UINTN							BitmapHeight;
 	EFI_GRAPHICS_OUTPUT_BLT_PIXEL	*BltBuffer;
 
 	BitmapHeader = (BITMAP_FILE_HEADER*)BmpBuffer;
+	BitmapWidth  = BitmapHeader->Width;
+	BitmapWidth	 = ((INT32)BitmapWidth < 0) ? -(INT32)(BitmapWidth) : BitmapWidth;
+	BitmapHeight = BitmapHeader->Height;
+	BitmapHeight = ((INT32)BitmapHeight < 0) ? -(INT32)(BitmapHeight) : BitmapHeight;
+
 	Print(L"Bitmap: %d x %d\n", BitmapHeader->Width, BitmapHeader->Height);
+	Print(L"Bitmap: %d x %d\n", BitmapWidth, BitmapHeight);
 
 	if(BitmapHeader->CoreHeaderSize != 40){
 		Print(L"CoreHeaderSize: %r\n", EFI_UNSUPPORTED);
@@ -122,19 +131,21 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 		return EFI_UNSUPPORTED;
 	}
 
-	BitmapHead	= (UINT8*)BmpBuffer + BitmapHeader->Offset;
-	BitmapIndex = BitmapHead;
-	Palette		= (UINT32*)((UINT8*)BmpBuffer + 0x36); // 決め打ち
-	Pixels		= BitmapHeader->Width * BitmapHeader->Height;
-	BltBuffer	= AllocateZeroPool(sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL) * Pixels);
+	BitmapHead	 = (UINT8*)BmpBuffer + BitmapHeader->Offset;
+	BitmapIndex  = BitmapHead;
+	Palette		 = (UINT32*)((UINT8*)BmpBuffer + 0x36); // 決め打ち
+	Pixels		 = BitmapWidth * BitmapHeight;
+	Size		 = sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL) * Pixels;
+
+	BltBuffer	 = AllocateZeroPool(Size);
 	if(BltBuffer == NULL){
-		Print(L"BltBuffer: %r\n", EFI_OUT_OF_RESOURCES);
+		Print(L"BltBuffer: %r\nSize = %d\n", EFI_OUT_OF_RESOURCES, Size);
 		return EFI_OUT_OF_RESOURCES;
 	}
 
-	for(YIndex = 0; YIndex < BitmapHeader->Height; YIndex++){
-		for(XIndex = 0; XIndex < BitmapHeader->Width; XIndex++, BitmapIndex++){
-			BltPos	= (BitmapHeader->Height - YIndex) * BitmapHeader->Width + XIndex;
+	for(YIndex = 0; YIndex < BitmapHeight; YIndex++){
+		for(XIndex = 0; XIndex < BitmapWidth; XIndex++, BitmapIndex++){
+			BltPos	= (BitmapHeight - YIndex) * BitmapWidth + XIndex;
 			switch(BitmapHeader->BitCount){
 				case 8:
 					BltBuffer[BltPos].Blue		= (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 0 , 7 );
@@ -156,7 +167,7 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 		}
 	}
 
-	Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 200, 200, BitmapHeader->Width, BitmapHeader->Height, 0);
+	Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 200, 200, BitmapWidth, BitmapHeight, 0);
 	if(EFI_ERROR(Status)){
 		Print(L"Blt: %r\n", Status);
 		return Status;
@@ -164,4 +175,21 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 	FreePool(BltBuffer);
 
 	return Status;
+}
+
+VOID
+ShowQueryMode(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput){
+	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION	*GraphicsInfo;
+	UINTN									Size;
+	EFI_STATUS								Status;
+
+	Print(L"Current Mode: %d\n", GraphicsOutput->Mode->Mode);
+	for(int ModeNumber = 0; ModeNumber < GraphicsOutput->Mode->MaxMode; ModeNumber++){
+		Status = uefi_call_wrapper(GraphicsOutput->QueryMode, 4, GraphicsOutput, 0, &Size, &GraphicsInfo);
+		if(EFI_ERROR(Status)){
+			Print(L"QueryMode: %r\n", Status);
+			return;
+		}
+		Print(L"Mode %d - Display: %d x %d\n", ModeNumber, GraphicsInfo->HorizontalResolution, GraphicsInfo->VerticalResolution);
+	}
 }
