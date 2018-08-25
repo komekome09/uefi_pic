@@ -21,7 +21,41 @@ typedef struct {
 	UINT16	BitCount;
 	UINT32	Compression;
 } BITMAP_FILE_HEADER;
+typedef struct {
+    CHAR8   Signature[8];
+} PNG_SIGNATURE;
+typedef struct {
+    UINT32 Length;
+    CHAR8 Type[4];
+} PNG_CHUNK_HEADER;
+typedef struct {
+    UINT32 Length;
+    CHAR8 Type[4];
+    UINT32 Width;
+    UINT32 Height;
+    UINT8 Depth;
+    UINT8 ColorType;
+    UINT8 CopressionType;
+    UINT8 FilterType;
+    UINT8 InterraceType;
+    CHAR8 Crc[4];
+} PNG_CHUNK_IHDR;
 #pragma pack()
+
+CHAR8 PNG_CHUNKHEX[][5] = {
+    {0x49, 0x48, 0x44, 0x52}, // IHDR
+    {0x50, 0x4C, 0x54, 0x45}, // PLTE
+    {0x49, 0x44, 0x41, 0x54}, // IDAT
+    {0x49, 0x45, 0x4E, 0x44}
+};
+
+typedef enum {
+    PNG_CHUNKTYPE_IHDR = 1,
+    PNG_CHUNKTYPE_PLTE,
+    PNG_CHUNKTYPE_IDAT,
+    PNG_CHUNKTYPE_IEND,
+    PNG_CHUNKTYPE_UNKNOWN = 99
+} PNG_CHUNKTYPE;
 
 UINT32
 BitFieldRead32(IN UINT32 Operand, IN UINTN StartBit, IN UINTN EndBit){
@@ -32,22 +66,11 @@ BitFieldRead32(IN UINT32 Operand, IN UINTN StartBit, IN UINTN EndBit){
 
 STATIC
 EFI_STATUS
-LoadPngFile(IN EFI_HANDLE Handle, IN CHAR16 *Path, OUT void **PngBuffer, OUT UINTN *BmpSize){
-    EFI_STATUS                  Status = EFI_SUCCESS;
-    EFI_FILE_IO_INTERFACE       *SimpleFile;
-    EFI_GUID                    SimpleFileSystemProtocolGuid = SIMPLE_FILE_SYSTEM_PROTOCOL;
-    EFI_FILE                    *Root, *File;
-    UINTN                       BufferSize;
-    void                        *Buffer = NULL;
-}
-
-STATIC
-EFI_STATUS
-LoadBitmapFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **BmpBuffer, OUT UINTN *BmpSize){
+LoadImageFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **BmpBuffer, OUT UINTN *BmpSize){
 	EFI_STATUS					Status = EFI_SUCCESS;
-	EFI_FILE_IO_INTERFACE		*SimpleFile;
-	EFI_GUID					SimpleFileSystemProtocolGuid = SIMPLE_FILE_SYSTEM_PROTOCOL;
-	EFI_FILE					*Root, *File;
+	EFI_FILE_IO_INTERFACE		*SimpleFile; 
+    EFI_GUID					SimpleFileSystemProtocolGuid = SIMPLE_FILE_SYSTEM_PROTOCOL; 
+    EFI_FILE					*Root, *File;
 	UINTN						BufferSize;
 	void						*Buffer = NULL;
 
@@ -92,6 +115,111 @@ LoadBitmapFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **BmpBuffer, OUT 
 	return Status;
 }
 
+UINT32 swap32(UINT32 value)
+{
+    UINT32 ret;
+    ret  = value              << 24;
+    ret |= (value&0x0000FF00) <<  8;
+    ret |= (value&0x00FF0000) >>  8;
+    ret |= value              >> 24;
+    return ret;
+}
+
+UINT16 swap16(UINT16 value)
+{
+    UINT16 ret;
+    ret  = value << 8;
+    ret |= value >> 8;
+    return ret;
+}
+
+STATIC
+PNG_CHUNKTYPE
+CheckChunkType(CHAR8* ChunkName){
+    UINTN hit = 0;
+    for(UINTN i = 0; i<4; i++){
+        for(UINTN j = 0; j<4; j++){
+            if(PNG_CHUNKHEX[i][j] == ChunkName[j]) hit++;
+        }
+        if(hit == 4){
+            switch(i){
+                case 0:
+                    Print(L"PNG_CHUNKTYPE_IHDR\n");
+                    return PNG_CHUNKTYPE_IHDR;
+                case 1:
+                    Print(L"PNG_CHUNKTYPE_PLTE\n");
+                    return PNG_CHUNKTYPE_PLTE;
+                case 2:
+                    Print(L"PNG_CHUNKTYPE_IDAT\n");
+                    return PNG_CHUNKTYPE_IDAT;
+                case 3:
+                    Print(L"PNG_CHUNKTYPE_IEND\n");
+                    return PNG_CHUNKTYPE_IEND;
+            }
+        }
+        Print(L"\n");
+    }
+    return PNG_CHUNKTYPE_UNKNOWN;
+}
+
+STATIC
+EFI_STATUS
+DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN UINTN PngSize){
+    CHAR8                           PNG_FILE_SIGNATURE[] = {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
+	EFI_STATUS						Status = EFI_SUCCESS;
+	UINT8							*PngIndex;
+	UINT8							*PngHead;
+	UINT32							*Palette;
+	UINTN							Pixels;
+	UINTN							Size;
+	UINTN							XIndex;
+	UINTN							YIndex;
+	UINTN							BltPos;
+	UINTN							BitmapWidth;
+	UINTN							BitmapHeight;
+	EFI_GRAPHICS_OUTPUT_BLT_PIXEL	*BltBuffer;
+    PNG_SIGNATURE                   *PngSignature;
+    UINTN                           PngIdx = 0;
+
+    // Check Sigunature
+    PngSignature = (PNG_SIGNATURE*)PngBuffer;
+
+    for(Size = 0; Size < 8; Size++){
+        if(PngSignature->Signature[Size] != PNG_FILE_SIGNATURE[Size]){
+            Print(L"PNG signature is invalid %d %x %x\n", Size, PNG_FILE_SIGNATURE[Size], PngSignature->Signature[Size]);
+            return EFI_UNSUPPORTED;
+        }
+        Print(L"%x(%x) ", PNG_FILE_SIGNATURE[Size], PngSignature->Signature[Size]);
+    }
+    Print(L"\n");
+    PngIdx += 8;
+
+    PNG_CHUNK_HEADER *ChunkHeader = (PNG_CHUNK_HEADER*)(PngBuffer+PngIdx);
+    PNG_CHUNKTYPE ChunkType = CheckChunkType(ChunkHeader->Type);
+
+    PNG_CHUNK_IHDR *PngChunkIhdr;
+    switch(ChunkType){
+        case PNG_CHUNKTYPE_IHDR:
+            PngChunkIhdr = (PNG_CHUNK_IHDR*)(PngBuffer+PngIdx);
+            UINT32 PngLength = swap32(PngChunkIhdr->Length);
+            Print(L"%x %d ", PngLength, PngLength);
+            break;
+        case PNG_CHUNKTYPE_PLTE:
+            break;
+        case PNG_CHUNKTYPE_IDAT: 
+            break;
+        case PNG_CHUNKTYPE_IEND:
+            break;
+        default:
+            Print(L"Invalid chunk type or unsupported chunk\n");
+            return EFI_UNSUPPORTED;
+    }
+
+
+
+    return Status;
+}
+
 STATIC
 EFI_STATUS
 DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN UINTN BmpSize){
@@ -115,7 +243,6 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 	BitmapHeight = BitmapHeader->Height;
 	BitmapHeight = ((INT32)BitmapHeight < 0) ? -(INT32)(BitmapHeight) : BitmapHeight;
 
-	Print(L"Bitmap: %d x %d\n", BitmapHeader->Width, BitmapHeader->Height);
 	Print(L"Bitmap: %d x %d\n", BitmapWidth, BitmapHeight);
 
 	if(BitmapHeader->CoreHeaderSize != 40){
@@ -167,7 +294,7 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 		}
 	}
 
-	Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 200, 200, BitmapWidth, BitmapHeight, 0);
+	//Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 200, 200, BitmapWidth, BitmapHeight, 0);
 	if(EFI_ERROR(Status)){
 		Print(L"Blt: %r\n", Status);
 		return Status;
