@@ -1,6 +1,6 @@
 ARCH 		= x86_64
-EFIROOT 	= /usr
-EFILIB		= $(EFIROOT)/lib64
+EFIROOT 	= /usr/local
+EFILIB		= $(EFIROOT)/lib
 HDDRROOT 	= $(EFIROOT)/include/efi
 INCLUDES 	= -I. -I$(HDDRROOT) -I$(HDDRROOT)/$(ARCH) -I$(HDDRROOT)/protocol -I$(HOME)/opt/include
 
@@ -41,7 +41,8 @@ TARGETS = main.efi
 all: qemu 
 
 qemu: $(TARGETS) OVMF/OVMF.fd image/EFI/BOOT/BOOTX64.EFI
-	qemu-system-x86_64 -L OVMF/ -bios OVMF/OVMF.fd -hda fat:image -vnc 192.168.1.9:3
+	#qemu-system-x86_64 -L OVMF/ -bios OVMF/OVMF.fd -hda fat:image -vnc 192.168.1.9:3
+	qemu-system-x86_64 -L OVMF/ -bios OVMF/OVMF.fd -hda fat:image 
 
 image/EFI/BOOT/BOOTX64.EFI:
 	mkdir -p image/EFI/BOOT
