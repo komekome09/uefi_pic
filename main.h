@@ -216,6 +216,9 @@ DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN 
     }
 
 
+        EFI_INPUT_KEY Key;
+        while ((Status = uefi_call_wrapper(ST->ConIn->ReadKeyStroke, 2, ST->ConIn, &Key)) == EFI_NOT_READY) ;
+    }
 
     return Status;
 }

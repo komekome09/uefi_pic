@@ -9,7 +9,6 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	UINTN							BmpSize;
 	VOID							*PngBuffer = NULL;
 	UINTN							PngSize;
-	EFI_INPUT_KEY					Key;
 	CHAR16							FileName[] = L"nanagi_8.bmp";
 	CHAR16							FileName2[] = L"nanagi.png";
 
@@ -56,7 +55,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
         FreePool(PngBuffer);
     }
 
-	while ((Status = ST->ConIn->ReadKeyStroke(ST->ConIn, &Key)) == EFI_NOT_READY) ;
+    WaitForSingleEvent(ST->ConIn->WaitForKey, 10000000);
 
 	return EFI_SUCCESS;
 }
