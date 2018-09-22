@@ -4,6 +4,7 @@
 #include <efibind.h>
 #include <efilib.h>
 #include <efiprot.h>
+#include "stb_image.h"
 
 #define SIZE_1MB 0x00100000
 #define MAX_BUFFER_SIZE SIZE_1MB
@@ -182,6 +183,24 @@ CheckChunkType(CHAR8* ChunkName){
     }
     Print(L"\n");
     return PNG_CHUNKTYPE_UNKNOWN;
+}
+
+STATIC
+EFI_STATUS
+DrawPng_(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN CHAR16* FileName){
+    EFI_STATUS                      Status = EFI_SUCCESS;
+    CHAR8                           *Pixels;
+    UINTN                           Width, Height, Bpp;
+
+    Pixels = stbi_load(FileName, &Width, &Height, &Bpp, 0);
+
+    Print(L"FILENAME    = %s\n", FileName);
+    Print(L"Pixels      = %x\n", (void *)Pixels);
+    Print(L"Width       = %d\n", Width);
+    Print(L"Height      = %d\n", Height);
+    Print(L"Bpp         = %d\n", Bpp);
+
+    return EFI_SUCCESS;
 }
 
 STATIC

@@ -45,7 +45,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 		Print(L"Load Image failed.\n");
 		return Status;
 	}
-    Status = DrawPng(GraphicsOutput, PngBuffer, PngSize);
+    Status = DrawPng_(GraphicsOutput, FileName2);
 	if(EFI_ERROR(Status)){
 		Print(L"Draw Png failed.\n");
 		return Status;
