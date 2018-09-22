@@ -43,7 +43,7 @@ typedef struct {
     UINT32 Height;
     UINT8 Depth;
     UINT8 ColorType;
-    UINT8 CopressionType;
+    UINT8 CompressionType;
     UINT8 FilterType;
     UINT8 InterraceType;
     CHAR8 Crc[4];
@@ -64,6 +64,16 @@ typedef enum {
     PNG_CHUNKTYPE_IEND,
     PNG_CHUNKTYPE_UNKNOWN = 99
 } PNG_CHUNKTYPE;
+
+VOID
+CatenateMemory(IN void *Dest, IN const void *Src, IN UINTN Size, IN UINTN StartOffset){
+    CHAR8       *dst;
+    const CHAR8 *src = Src;
+    dst = Dest+StartOffset;
+    while(Size--){
+        *(dst++) = *(src++);
+    }
+}
 
 UINT32
 BitFieldRead32(IN UINT32 Operand, IN UINTN StartBit, IN UINTN EndBit){
@@ -123,8 +133,8 @@ LoadImageFile(IN EFI_HANDLE Handle, IN CHAR16 *Path,	OUT	void **BmpBuffer, OUT U
 	return Status;
 }
 
-UINT32 swap32(UINT32 value)
-{
+// Byte Swapping
+UINT32 SwapBit32(UINT32 value){
     UINT32 ret;
     ret  = value              << 24;
     ret |= (value&0x0000FF00) <<  8;
@@ -133,8 +143,7 @@ UINT32 swap32(UINT32 value)
     return ret;
 }
 
-UINT16 swap16(UINT16 value)
-{
+UINT16 SwapBit16(UINT16 value){
     UINT16 ret;
     ret  = value << 8;
     ret |= value >> 8;
@@ -182,7 +191,8 @@ DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN 
 	EFI_STATUS						Status = EFI_SUCCESS;
 	EFI_GRAPHICS_OUTPUT_BLT_PIXEL	*BltBuffer;
     PNG_SIGNATURE                   *PngSignature;
-    INTN                           PngIdx = 0;
+    INTN                            PngIdx = 0;
+    void                            *png_idat = AllocateZeroPool(MAX_BUFFER_SIZE);
 
     // Check Sigunature
     PngSignature = (PNG_SIGNATURE*)PngBuffer;
@@ -197,22 +207,45 @@ DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN 
     Print(L"\n");
     PngIdx += 8;
 
+    UINTN PngIdatOffset = 0;
+    UINTN PngIdatStart = 0;
+    UINTN Width = 0;
+    
     while(PngIdx >= 0){
         PNG_CHUNK_HEADER *ChunkHeader = (PNG_CHUNK_HEADER*)(PngBuffer+PngIdx);
         PNG_CHUNKTYPE ChunkType = CheckChunkType(ChunkHeader->Type);
 
-        UINT32 PngDataLength = swap32(ChunkHeader->Length);
+        UINT32 PngDataLength = SwapBit32(ChunkHeader->Length);
         Print(L"%x %d\n", PngDataLength, PngDataLength);
 
         PNG_CHUNK_IHDR *PngChunkIhdr;
         switch(ChunkType){
             case PNG_CHUNKTYPE_IHDR:
                 PngChunkIhdr = (PNG_CHUNK_IHDR*)(PngBuffer+PngIdx);
-                Print(L"IHDR %d x %d\n", swap32(PngChunkIhdr->Width), swap32(PngChunkIhdr->Height));
+                Width = SwapBit32(PngChunkIhdr->Width);
+                Print(L"IHDR length: %d\n", SwapBit32(PngChunkIhdr->Length));
+                Print(L"IHDR size: %d x %d\n", SwapBit32(PngChunkIhdr->Width), SwapBit32(PngChunkIhdr->Height));
+                Print(L"IHDR depth: %d\n", PngChunkIhdr->Depth);
+                Print(L"IHDR color type: %d\n", PngChunkIhdr->ColorType);
+                Print(L"IHDR Compression type: %d\n", PngChunkIhdr->CompressionType);
+                Print(L"IHDR filter type: %d\n", PngChunkIhdr->FilterType);
+                Print(L"IHDR interrace type: %d\n", PngChunkIhdr->InterraceType);
+                Print(L"IHDR crc: %x%x%x%x\n", PngChunkIhdr->Crc[0], PngChunkIhdr->Crc[0], PngChunkIhdr->Crc[2], PngChunkIhdr->Crc[3]);
+                //UINT32 Crc;
+                //Print(L"%r\n", uefi_call_wrapper(BS->CalculateCrc32, 3, PngBuffer+PngIdx+PNG_LENGTH_SIZE, PngChunkIhdr->Length+PNG_CHUNKTYPE_SIZE, &Crc));
+                //Print(L"IHDR calc crc: %x\n", Crc);
                 break;
             case PNG_CHUNKTYPE_PLTE:
                 break;
             case PNG_CHUNKTYPE_IDAT: 
+                if(PngIdatStart == 0){
+                    PngIdatStart = PngIdx;
+                }
+                void *tmp = AllocatePool(PngDataLength);
+                CopyMem(tmp, PngBuffer+PngIdx+PNG_LENGTH_SIZE, PngDataLength);
+                CatenateMemory(png_idat, PngBuffer, PngDataLength, PngIdatOffset);
+                FreePool(tmp);
+                PngIdatOffset += PngDataLength;
                 break;
             case PNG_CHUNKTYPE_IEND:
                 PngIdx = -1;
@@ -225,12 +258,46 @@ DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN 
             PngIdx += PNG_LENGTH_SIZE + PNG_CHUNKTYPE_SIZE + PngDataLength + PNG_CRC_SIZE;
             Print(L"PngIdx = %d, PngDataLength = %d", PngIdx, PngDataLength);
         }
-
+    
         EFI_INPUT_KEY Key;
         while ((Status = uefi_call_wrapper(ST->ConIn->ReadKeyStroke, 2, ST->ConIn, &Key)) == EFI_NOT_READY) ;
     }
 
+    Width = 16;
+    for(UINTN i = 0; i<MAX_BUFFER_SIZE; i++){
+        CHAR8 *tmp = png_idat+i;
+        UINTN t = i%Width;
+        if(i/Width <= 10){
+            if(i%Width==0 && i!=0){
+                Print(L"\n%02x ", *tmp, *tmp);
+            }else{
+                Print(L"%02x ", *tmp, *tmp);
+            }
+        }
+    }
+    Print(L"\n\n");
+    for(UINTN i = PngIdatStart; i<MAX_BUFFER_SIZE; i++){
+        CHAR8 *tmp = png_idat+i;
+        UINTN t = i%Width;
+        if(i/Width <= 10+(PngIdatStart/Width)){
+            if(i%Width==0 && i!=0){
+                Print(L"\n%02x ", *tmp, *tmp);
+            }else{
+                Print(L"%02x ", *tmp, *tmp);
+            }
+        }
+    }
+    FreePool(png_idat);
+
+    EFI_INPUT_KEY Key;
+    while ((Status = uefi_call_wrapper(ST->ConIn->ReadKeyStroke, 2, ST->ConIn, &Key)) == EFI_NOT_READY) ;
+
     return Status;
+}
+
+STATIC
+EFI_STATUS
+DeflateDecompress(IN void *DeflateBuffer){
 }
 
 STATIC
