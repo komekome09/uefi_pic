@@ -1,3 +1,6 @@
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_STDIO
+#include "stb_image.h"
 #include "main.h"
 
 EFI_STATUS
@@ -15,7 +18,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	InitializeLib(ImageHandle, SystemTable);
 
 	LibLocateProtocol(&EfiGraphicsOutputProtocolGuid, (void **)&GraphicsOutput);
-	
+
 	Status = LoadImageFile(ImageHandle,  FileName, &BmpBuffer, &BmpSize);
 	if(EFI_ERROR(Status)){
 		if(BmpBuffer != NULL){
@@ -45,7 +48,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 		Print(L"Load Image failed.\n");
 		return Status;
 	}
-    Status = DrawPng_(GraphicsOutput, FileName2);
+    Status = DrawPng_(GraphicsOutput, PngBuffer, PngSize);
 	if(EFI_ERROR(Status)){
 		Print(L"Draw Png failed.\n");
 		return Status;
@@ -55,7 +58,9 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
         FreePool(PngBuffer);
     }
 
-    WaitForSingleEvent(ST->ConIn->WaitForKey, 10000000);
+    while(true){
+        WaitForSingleEvent(ST->ConIn->WaitForKey, 10000000);
+    }
 
 	return EFI_SUCCESS;
 }

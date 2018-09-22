@@ -15,7 +15,7 @@ FORMAT		= efi-app-$(ARCH)
 INSTALL		= install
 LDFLAGS		= -nostdlib
 LDSCRIPTS 	= -T $(EFILIB)/elf_$(ARCH)_efi.lds
-LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS) -L$(HOME)/opt/lib
+LDFLAGS 	+= $(LDSCRIPTS) -shared -Bsymbolic -L$(EFILIB) $(CRTOBJS)
 LOADLIBS 	= -lefi -lgnuefi $(shell $(CC) -print-libgcc-file-name)
 
 prefix 		= #$(ARCH)-w64-mingw32-
@@ -33,7 +33,7 @@ OBJCOPY 	= $(prefix)objcopy
 %.so: %.o
 	$(LD) $(LDFLAGS) $^ -o $@ $(LOADLIBS)
 
-%.o: %.c %.h
+%.o: %.c
 	$(CC) $(INCLUDES) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 TARGETS = main.efi
@@ -55,4 +55,4 @@ OVMF/OVMF.fd:
 	rm OVMF-X64-r15214.zip
 
 clean:
-	rm -f main.efi
+	rm -f main.efi main.so main.o

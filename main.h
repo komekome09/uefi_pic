@@ -4,7 +4,6 @@
 #include <efibind.h>
 #include <efilib.h>
 #include <efiprot.h>
-#include "stb_image.h"
 
 #define SIZE_1MB 0x00100000
 #define MAX_BUFFER_SIZE SIZE_1MB
@@ -187,14 +186,17 @@ CheckChunkType(CHAR8* ChunkName){
 
 STATIC
 EFI_STATUS
-DrawPng_(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN CHAR16* FileName){
+DrawPng_(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN UINTN PngSize){
     EFI_STATUS                      Status = EFI_SUCCESS;
     CHAR8                           *Pixels;
-    UINTN                           Width, Height, Bpp;
+    INTN                            Width = 0;
+    INTN                            Height = 0;
+    INTN                            Bpp = 0;
 
-    Pixels = stbi_load(FileName, &Width, &Height, &Bpp, 0);
+    Print(L"stbi_load_from_memory start\n");
+    Pixels = stbi_load_from_memory((UINT8*)PngBuffer, PngSize, &Width, &Height, &Bpp, 0);
+    Print(L"stbi_load_from_memory end\n");
 
-    Print(L"FILENAME    = %s\n", FileName);
     Print(L"Pixels      = %x\n", (void *)Pixels);
     Print(L"Width       = %d\n", Width);
     Print(L"Height      = %d\n", Height);
@@ -285,7 +287,6 @@ DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN 
     Width = 16;
     for(UINTN i = 0; i<MAX_BUFFER_SIZE; i++){
         CHAR8 *tmp = png_idat+i;
-        UINTN t = i%Width;
         if(i/Width <= 10){
             if(i%Width==0 && i!=0){
                 Print(L"\n%02x ", *tmp, *tmp);
@@ -297,7 +298,6 @@ DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN 
     Print(L"\n\n");
     for(UINTN i = PngIdatStart; i<MAX_BUFFER_SIZE; i++){
         CHAR8 *tmp = png_idat+i;
-        UINTN t = i%Width;
         if(i/Width <= 10+(PngIdatStart/Width)){
             if(i%Width==0 && i!=0){
                 Print(L"\n%02x ", *tmp, *tmp);
@@ -317,6 +317,7 @@ DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN 
 STATIC
 EFI_STATUS
 DeflateDecompress(IN void *DeflateBuffer){
+    return EFI_SUCCESS;
 }
 
 STATIC
