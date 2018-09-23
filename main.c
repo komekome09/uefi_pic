@@ -1,6 +1,5 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_STDIO
-#include "stb_image.h"
 #include "main.h"
 
 EFI_STATUS
@@ -58,7 +57,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
         FreePool(PngBuffer);
     }
 
-    while(true){
+    while(1){
         WaitForSingleEvent(ST->ConIn->WaitForKey, 10000000);
     }
 
