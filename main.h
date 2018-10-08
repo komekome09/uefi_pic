@@ -189,21 +189,54 @@ STATIC
 EFI_STATUS
 DrawPng_(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN UINTN PngSize){
     EFI_STATUS                      Status = EFI_SUCCESS;
-    CHAR8                           *Pixels;
-    INTN                            Width = 0;
-    INTN                            Height = 0;
-    INTN                            Bpp = 0;
+    UINT8                           *Pixels;
+    INT32                           Width = 0;
+    INT32                           Height = 0;
+    INT32                           Bpp = 0;
 
-    Print(L"stbi_load_from_memory start\n");
     Pixels = stbi_load_from_memory((UINT8*)PngBuffer, PngSize, &Width, &Height, &Bpp, 0);
-    Print(L"stbi_load_from_memory end\n");
+    Print(L"%s\n", (CHAR16*)stbi_failure_reason());
 
-    Print(L"Pixels      = %x\n", (void *)Pixels);
+    //Print(L"Pixels      = %x\n", (void *)Pixels);
     Print(L"Width       = %d\n", Width);
     Print(L"Height      = %d\n", Height);
     Print(L"Bpp         = %d\n", Bpp);
 
-    return EFI_SUCCESS;
+    EFI_GRAPHICS_OUTPUT_BLT_PIXEL   *BltBuffer;
+    UINT8   *PngIndex = Pixels;
+    INTN BltPos = 0;
+
+	BltBuffer	 = AllocateZeroPool(sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL)*Width*Height);
+	if(BltBuffer == NULL){
+		Print(L"BltBuffer: %r\nSize = %d\n", EFI_OUT_OF_RESOURCES, PngSize);
+		return EFI_OUT_OF_RESOURCES;
+	}
+
+    for(INTN YIndex = 0; YIndex < Height; YIndex++){
+        for(INTN XIndex = 0; XIndex < Width; XIndex++, PngIndex++){
+			BltPos	= (Height - XIndex) * Width + YIndex;
+			switch(Bpp){
+				case 4:
+					BltBuffer[BltPos].Red           = *PngIndex++;
+					BltBuffer[BltPos].Green         = *PngIndex++;
+					BltBuffer[BltPos].Blue	        = *PngIndex++;
+                    BltBuffer[BltPos].Reserved      = *PngIndex++;
+					break;
+				case 3:
+					BltBuffer[BltPos].Red           = *PngIndex++;
+					BltBuffer[BltPos].Green         = *PngIndex++;
+					BltBuffer[BltPos].Blue	        = *PngIndex++;
+					break;
+				default:
+					Print(L"BitCount:: %r\n", EFI_UNSUPPORTED);
+					return EFI_UNSUPPORTED;
+			}
+		}
+	}
+
+	Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 0, 0, Width, Height, 0);
+
+    return Status;
 }
 
 STATIC
@@ -211,7 +244,6 @@ EFI_STATUS
 DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN UINTN PngSize){
     CHAR8                           PNG_FILE_SIGNATURE[] = {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
 	EFI_STATUS						Status = EFI_SUCCESS;
-	EFI_GRAPHICS_OUTPUT_BLT_PIXEL	*BltBuffer;
     PNG_SIGNATURE                   *PngSignature;
     INTN                            PngIdx = 0;
     void                            *png_idat = AllocateZeroPool(MAX_BUFFER_SIZE);
@@ -395,7 +427,7 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 		}
 	}
 
-	//Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 200, 200, BitmapWidth, BitmapHeight, 0);
+	Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 200, 200, BitmapWidth, BitmapHeight, 0);
 	if(EFI_ERROR(Status)){
 		Print(L"Blt: %r\n", Status);
 		return Status;

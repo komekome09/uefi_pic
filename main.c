@@ -49,8 +49,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	}
     Status = DrawPng_(GraphicsOutput, PngBuffer, PngSize);
 	if(EFI_ERROR(Status)){
-		Print(L"Draw Png failed.\n");
-		return Status;
+		Print(L"Draw Png failed. %r(%d)\n", Status, Status);
 	}
 
     if(PngBuffer != NULL){
