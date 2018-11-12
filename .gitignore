@@ -57,6 +57,7 @@ tags
 # efi
 OVMF/
 image/
+pic/
 *.efi
 
 # Created by https://www.gitignore.io/api/macos
