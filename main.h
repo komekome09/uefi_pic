@@ -27,44 +27,8 @@ typedef struct {
 	UINT16	BitCount;
 	UINT32	Compression;
 } BITMAP_FILE_HEADER;
-
-typedef struct {
-    CHAR8   Signature[8];
-} PNG_SIGNATURE;
-
-typedef struct {
-    UINT32 Length;
-    CHAR8 Type[4];
-} PNG_CHUNK_HEADER;
-
-typedef struct {
-    UINT32 Length;
-    CHAR8 Type[4];
-    UINT32 Width;
-    UINT32 Height;
-    UINT8 Depth;
-    UINT8 ColorType;
-    UINT8 CompressionType;
-    UINT8 FilterType;
-    UINT8 InterraceType;
-    CHAR8 Crc[4];
-} PNG_CHUNK_IHDR;
 #pragma pack()
 
-CHAR8 PNG_CHUNKHEX[][5] = {
-    {0x49, 0x48, 0x44, 0x52}, // IHDR
-    {0x50, 0x4C, 0x54, 0x45}, // PLTE
-    {0x49, 0x44, 0x41, 0x54}, // IDAT
-    {0x49, 0x45, 0x4E, 0x44}  // IEND
-};
-
-typedef enum {
-    PNG_CHUNKTYPE_IHDR = 1,
-    PNG_CHUNKTYPE_PLTE,
-    PNG_CHUNKTYPE_IDAT,
-    PNG_CHUNKTYPE_IEND,
-    PNG_CHUNKTYPE_UNKNOWN = 99
-} PNG_CHUNKTYPE;
 
 VOID
 CatenateMemory(IN void *Dest, IN const void *Src, IN UINTN Size, IN UINTN StartOffset){
@@ -152,42 +116,8 @@ UINT16 SwapBit16(UINT16 value){
 }
 
 STATIC
-PNG_CHUNKTYPE
-CheckChunkType(CHAR8* ChunkName){
-    UINTN hit = 0;
-    for(UINTN i = 0; i<4; i++){
-        hit = 0;
-        for(UINTN j = 0; j<4; j++){
-            if(PNG_CHUNKHEX[i][j] == ChunkName[j]) hit++;
-        }
-        if(hit == 4){
-            switch(i){
-                case 0:
-                    Print(L"PNG_CHUNKTYPE_IHDR\n");
-                    return PNG_CHUNKTYPE_IHDR;
-                case 1:
-                    Print(L"PNG_CHUNKTYPE_PLTE\n");
-                    return PNG_CHUNKTYPE_PLTE;
-                case 2:
-                    Print(L"PNG_CHUNKTYPE_IDAT\n");
-                    return PNG_CHUNKTYPE_IDAT;
-                case 3:
-                    Print(L"PNG_CHUNKTYPE_IEND\n");
-                    return PNG_CHUNKTYPE_IEND;
-            }
-        }
-        Print(L"\n");
-    }
-    for(UINTN i = 0; i<4; i++){
-        Print(L"%c", ChunkName[i]);
-    }
-    Print(L"\n");
-    return PNG_CHUNKTYPE_UNKNOWN;
-}
-
-STATIC
 EFI_STATUS
-DrawPng_(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN UINTN PngSize){
+DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN UINTN PngSize){
     EFI_STATUS                      Status = EFI_SUCCESS;
     UINT8                           *Pixels;
     INT32                           Width = 0;
@@ -197,7 +127,6 @@ DrawPng_(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN
     Pixels = stbi_load_from_memory((UINT8*)PngBuffer, PngSize, &Width, &Height, &Bpp, 0);
     Print(L"%s\n", (CHAR16*)stbi_failure_reason());
 
-    //Print(L"Pixels      = %x\n", (void *)Pixels);
     Print(L"Width       = %d\n", Width);
     Print(L"Height      = %d\n", Height);
     Print(L"Bpp         = %d\n", Bpp);
@@ -213,13 +142,13 @@ DrawPng_(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN
 	}
 
     for(INTN YIndex = 0; YIndex < Height; YIndex++){
-        for(INTN XIndex = 0; XIndex < Width; XIndex++, PngIndex++){
-			BltPos	= (Height - XIndex) * Width + YIndex;
+        for(INTN XIndex = 0; XIndex < Width; XIndex++){
+			BltPos	= YIndex * Width + XIndex;
 			switch(Bpp){
-				case 4:
-					BltBuffer[BltPos].Red           = *PngIndex++;
-					BltBuffer[BltPos].Green         = *PngIndex++;
-					BltBuffer[BltPos].Blue	        = *PngIndex++;
+				case 4:					
+                    BltBuffer[BltPos].Red           = *PngIndex++;
+                    BltBuffer[BltPos].Green         = *PngIndex++;
+                    BltBuffer[BltPos].Blue	        = *PngIndex++;
                     BltBuffer[BltPos].Reserved      = *PngIndex++;
 					break;
 				case 3:
@@ -237,120 +166,6 @@ DrawPng_(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN
 	Status = uefi_call_wrapper(GraphicsOutput->Blt, 10, GraphicsOutput, BltBuffer, EfiBltBufferToVideo, 0, 0, 0, 0, Width, Height, 0);
 
     return Status;
-}
-
-STATIC
-EFI_STATUS
-DrawPng(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *PngBuffer, IN UINTN PngSize){
-    CHAR8                           PNG_FILE_SIGNATURE[] = {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
-	EFI_STATUS						Status = EFI_SUCCESS;
-    PNG_SIGNATURE                   *PngSignature;
-    INTN                            PngIdx = 0;
-    void                            *png_idat = AllocateZeroPool(MAX_BUFFER_SIZE);
-
-    // Check Sigunature
-    PngSignature = (PNG_SIGNATURE*)PngBuffer;
-
-    for(UINTN i = 0; i < 8; i++){
-        if(PngSignature->Signature[i] != PNG_FILE_SIGNATURE[i]){
-            Print(L"PNG signature is invalid %d %x %x\n", i, PNG_FILE_SIGNATURE[i], PngSignature->Signature[i]);
-            return EFI_UNSUPPORTED;
-        }
-        Print(L"%x(%x) ", PNG_FILE_SIGNATURE[i], PngSignature->Signature[i]);
-    }
-    Print(L"\n");
-    PngIdx += 8;
-
-    UINTN PngIdatOffset = 0;
-    UINTN PngIdatStart = 0;
-    UINTN Width = 0;
-    
-    while(PngIdx >= 0){
-        PNG_CHUNK_HEADER *ChunkHeader = (PNG_CHUNK_HEADER*)(PngBuffer+PngIdx);
-        PNG_CHUNKTYPE ChunkType = CheckChunkType(ChunkHeader->Type);
-
-        UINT32 PngDataLength = SwapBit32(ChunkHeader->Length);
-        Print(L"%x %d\n", PngDataLength, PngDataLength);
-
-        PNG_CHUNK_IHDR *PngChunkIhdr;
-        switch(ChunkType){
-            case PNG_CHUNKTYPE_IHDR:
-                PngChunkIhdr = (PNG_CHUNK_IHDR*)(PngBuffer+PngIdx);
-                Width = SwapBit32(PngChunkIhdr->Width);
-                Print(L"IHDR length: %d\n", SwapBit32(PngChunkIhdr->Length));
-                Print(L"IHDR size: %d x %d\n", SwapBit32(PngChunkIhdr->Width), SwapBit32(PngChunkIhdr->Height));
-                Print(L"IHDR depth: %d\n", PngChunkIhdr->Depth);
-                Print(L"IHDR color type: %d\n", PngChunkIhdr->ColorType);
-                Print(L"IHDR Compression type: %d\n", PngChunkIhdr->CompressionType);
-                Print(L"IHDR filter type: %d\n", PngChunkIhdr->FilterType);
-                Print(L"IHDR interrace type: %d\n", PngChunkIhdr->InterraceType);
-                Print(L"IHDR crc: %x%x%x%x\n", PngChunkIhdr->Crc[0], PngChunkIhdr->Crc[0], PngChunkIhdr->Crc[2], PngChunkIhdr->Crc[3]);
-                //UINT32 Crc;
-                //Print(L"%r\n", uefi_call_wrapper(BS->CalculateCrc32, 3, PngBuffer+PngIdx+PNG_LENGTH_SIZE, PngChunkIhdr->Length+PNG_CHUNKTYPE_SIZE, &Crc));
-                //Print(L"IHDR calc crc: %x\n", Crc);
-                break;
-            case PNG_CHUNKTYPE_PLTE:
-                break;
-            case PNG_CHUNKTYPE_IDAT: 
-                if(PngIdatStart == 0){
-                    PngIdatStart = PngIdx;
-                }
-                void *tmp = AllocatePool(PngDataLength);
-                CopyMem(tmp, PngBuffer+PngIdx+PNG_LENGTH_SIZE, PngDataLength);
-                CatenateMemory(png_idat, PngBuffer, PngDataLength, PngIdatOffset);
-                FreePool(tmp);
-                PngIdatOffset += PngDataLength;
-                break;
-            case PNG_CHUNKTYPE_IEND:
-                PngIdx = -1;
-                break;
-            default:
-                Print(L"Invalid chunk type or unsupported chunk\n");
-                //return EFI_UNSUPPORTED;
-        }
-        if(PngIdx >= 0){
-            PngIdx += PNG_LENGTH_SIZE + PNG_CHUNKTYPE_SIZE + PngDataLength + PNG_CRC_SIZE;
-            Print(L"PngIdx = %d, PngDataLength = %d", PngIdx, PngDataLength);
-        }
-    
-        EFI_INPUT_KEY Key;
-        while ((Status = uefi_call_wrapper(ST->ConIn->ReadKeyStroke, 2, ST->ConIn, &Key)) == EFI_NOT_READY) ;
-    }
-
-    Width = 16;
-    for(UINTN i = 0; i<MAX_BUFFER_SIZE; i++){
-        CHAR8 *tmp = png_idat+i;
-        if(i/Width <= 10){
-            if(i%Width==0 && i!=0){
-                Print(L"\n%02x ", *tmp, *tmp);
-            }else{
-                Print(L"%02x ", *tmp, *tmp);
-            }
-        }
-    }
-    Print(L"\n\n");
-    for(UINTN i = PngIdatStart; i<MAX_BUFFER_SIZE; i++){
-        CHAR8 *tmp = png_idat+i;
-        if(i/Width <= 10+(PngIdatStart/Width)){
-            if(i%Width==0 && i!=0){
-                Print(L"\n%02x ", *tmp, *tmp);
-            }else{
-                Print(L"%02x ", *tmp, *tmp);
-            }
-        }
-    }
-    FreePool(png_idat);
-
-    EFI_INPUT_KEY Key;
-    while ((Status = uefi_call_wrapper(ST->ConIn->ReadKeyStroke, 2, ST->ConIn, &Key)) == EFI_NOT_READY) ;
-
-    return Status;
-}
-
-STATIC
-EFI_STATUS
-DeflateDecompress(IN void *DeflateBuffer){
-    return EFI_SUCCESS;
 }
 
 STATIC
@@ -408,13 +223,13 @@ DrawBmp(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *BmpBuffer, IN 
 			BltPos	= (BitmapHeight - YIndex) * BitmapWidth + XIndex;
 			switch(BitmapHeader->BitCount){
 				case 8:
-					BltBuffer[BltPos].Blue		= (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 0 , 7 );
-					BltBuffer[BltPos].Green    = (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 8 , 15);
-					BltBuffer[BltPos].Red      = (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 16, 23);
+					BltBuffer[BltPos].Blue      = (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 0 , 7 );
+					BltBuffer[BltPos].Green     = (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 8 , 15);
+					BltBuffer[BltPos].Red       = (UINT8) BitFieldRead32 (Palette[*BitmapIndex], 16, 23);
 					break;
 				case 24:
 					BltBuffer[BltPos].Blue		= *BitmapIndex++;
-					BltBuffer[BltPos].Green    = *BitmapIndex++;
+					BltBuffer[BltPos].Green     = *BitmapIndex++;
 					BltBuffer[BltPos].Red      = *BitmapIndex;
 					break;
 				default:
