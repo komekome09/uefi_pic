@@ -29,7 +29,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 
 	ShowQueryMode(GraphicsOutput);
 
-	Status = DrawBmp(GraphicsOutput, BmpBuffer, BmpSize);
+	Status = DrawImage(GraphicsOutput, BmpBuffer, BmpSize);
 	if(EFI_ERROR(Status)){
 		Print(L"Draw bmp failed.\n");
 		return Status;
@@ -47,7 +47,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 		Print(L"Load Image failed.\n");
 		return Status;
 	}
-    Status = DrawPng(GraphicsOutput, PngBuffer, PngSize);
+    Status = DrawImage(GraphicsOutput, PngBuffer, PngSize);
 	if(EFI_ERROR(Status)){
 		Print(L"Draw Png failed. %r(%d)\n", Status, Status);
 	}
