@@ -175,6 +175,90 @@ DrawImage(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput, IN void *ImgBuffer, I
     return Status;
 }
 
+STATIC
+EFI_STATUS
+outb(IN EFI_PCI_IO_PROTOCOL *PciIo, UINTN Addr, UINT8 Data){
+    return uefi_call_wrapper(PciIo->Io.Write, 6, PciIo, EfiPciIoWidthUint8, EFI_PCI_IO_PASS_THROUGH_BAR, Addr, 1, &Data);
+}
+
+STATIC
+UINT8
+inb(IN EFI_PCI_IO_PROTOCOL *PciIo, UINTN Addr){
+    UINT8 Data;
+    uefi_call_wrapper(PciIo->Io.Read, 6, PciIo, EfiPciIoWidthUint8, EFI_PCI_IO_PASS_THROUGH_BAR, Addr, 1, &Data);
+    return Data;
+}
+
+STATIC
+EFI_STATUS
+Beep(IN EFI_PCI_IO_PROTOCOL *PciIo, IN UINTN freq){
+    UINTN Div;
+    UINT8 Tmp;
+    EFI_STATUS Status;
+
+    Div = 1193180 / freq;
+    UINTN Addr = 0x43;
+    UINT8 Data = 0xb6;
+
+    Status = outb(PciIo, Addr, Data);
+    if(EFI_ERROR(Status)){
+        Print(L"Error in 0x43\n");
+        return Status;
+    }
+
+    Addr = 0x42; Data = (UINT8)Div;
+    Status = outb(PciIo, Addr, Data);
+    if(EFI_ERROR(Status)){
+        Print(L"Error in 0x42 Div\n");
+        return Status;
+    }
+
+    Data = (UINT8)(Div >> 8);
+    Status = outb(PciIo, Addr, Data);
+    if(EFI_ERROR(Status)){
+        Print(L"Error in 0x42 Div >> 8\n");
+        return Status;
+    }
+
+    Addr = 0x61;
+    Tmp = inb(PciIo, Addr);
+    if(Tmp != (Tmp | 3)){
+        Status = outb(PciIo, Addr, Tmp | 3);
+        if(EFI_ERROR(Status)){
+            Print(L"Error in 0x61\n");
+            return Status;
+        }
+    }
+
+    uefi_call_wrapper(BS->Stall, 1, 1e6);
+
+    UINTN notes[11] = {277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494};
+    Status = outb(PciIo, 0x43, 0xb6); 
+    for(UINTN i=0; i<11; i++){
+        Data = 0x1234DC / notes[i];
+        Status = outb(PciIo, 0x42, Data & 0xff);
+        if(EFI_ERROR(Status)){
+            Print(L"Error in 0x42 Data & 0xff\n");
+            return Status;
+        }
+        outb(PciIo, 0x42, Data >> 8);
+        if(EFI_ERROR(Status)){
+            Print(L"Error in 0x42 Data >> 8\n");
+            return Status;
+        }
+        uefi_call_wrapper(BS->Stall, 1, 1e5);
+    }
+
+    Tmp = inb(PciIo, Addr) & 0xfc;
+    Status = outb(PciIo, Addr, Tmp);
+    if(EFI_ERROR(Status)){
+        Print(L"Error in 0x61 stop\n");
+        return Status;
+    }
+
+    return EFI_SUCCESS;
+}
+
 VOID
 ShowQueryMode(IN EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput){
 	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION	*GraphicsInfo;

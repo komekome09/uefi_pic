@@ -5,8 +5,10 @@
 EFI_STATUS
 efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	EFI_GUID						EfiGraphicsOutputProtocolGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+	EFI_GUID						EfiPciIoProtocolGuid = EFI_PCI_IO_PROTOCOL_GUID;
 	EFI_STATUS 						Status = EFI_SUCCESS;
 	EFI_GRAPHICS_OUTPUT_PROTOCOL	*GraphicsOutput;
+	EFI_PCI_IO_PROTOCOL				*PciIo;
 
 	CHAR16	FileName[] = L"nanagi_8.bmp";
 	CHAR16	FileName2[] = L"nanagi.png";
@@ -15,6 +17,7 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	InitializeLib(ImageHandle, SystemTable);
 
 	LibLocateProtocol(&EfiGraphicsOutputProtocolGuid, (void **)&GraphicsOutput);
+	LibLocateProtocol(&EfiPciIoProtocolGuid, (void **)&PciIo);
 
 	VOID	*BmpBuffer = NULL;
 	UINTN	BmpSize;
@@ -72,6 +75,12 @@ efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable){
 	}
 
 	if(JpgBuffer != NULL) FreePool(JpgBuffer);
+
+	Status = Beep(PciIo, 2500);
+	if(EFI_ERROR(Status)){
+		Print(L"Play Beep failed. (%d)\n", Status);
+		StatusToString(NULL, Status);
+	}
 
     while(1){
         WaitForSingleEvent(ST->ConIn->WaitForKey, 10000000);
