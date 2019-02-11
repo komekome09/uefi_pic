@@ -41,7 +41,7 @@ TARGETS = main.efi
 all: $(TARGETS)
 
 qemu: $(TARGETS) OVMF/OVMF.fd image/EFI/BOOT/BOOTX64.EFI
-	qemu-system-x86_64 -soundhw pcspk -L OVMF/ -bios OVMF/OVMF.fd -hda fat:image 
+	qemu-system-x86_64 -soundhw pcspk -L OVMF/ -bios OVMF/OVMF.fd -hda fat:rw:image 
 
 image/EFI/BOOT/BOOTX64.EFI:
 	mkdir -p image/EFI/BOOT
